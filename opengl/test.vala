@@ -1,25 +1,28 @@
 using GLES2;
 using Broadcom.VideoCore;
+using Broadcom.VideoCore.DisplayManager;
 
 class untitled : GLib.Object {
 
     public static int main(string[] args) {
-		stdout.printf("Initializing Broadcom host...\n");
 		Host.init();
-		stdout.printf("Broadcom host initialized. Probably.\n");
+		stdout.printf("Broadcom VideoCore host initialized.\n");
 		
-		stdout.printf("SDRAM address: %u\n", Host.get_sdram_address());
-		stdout.printf("Peripheral address: %u\n", Host.get_peripheral_address());
-		stdout.printf("Peripheral size: %u\n", Host.get_peripheral_size());
+		//stdout.printf("SDRAM address: %u\n", Host.get_sdram_address());
+		//stdout.printf("Peripheral address: %u\n", Host.get_peripheral_address());
+		//stdout.printf("Peripheral size: %u\n", Host.get_peripheral_size());
 		
-		uint width = 0;
-		uint height = 0;
-		int result = Host.get_display_size(0, &width, &height);
-		stdout.printf("Display size: %u x %u (result: %d)\n", width, height, result);
+		ModeInfo info = ModeInfo();
+		var displayId = DisplayId.MAIN_LCD;
 		
-		stdout.printf("Deinitializing Broadcom host...\n");
+		var displayHandle = display_open(displayId);
+		display_get_info(displayHandle, &info);
+		display_close(displayId);
+		
+		stdout.printf("Display size: %u x %u\n", info.width, info.height);
+		
 		Host.deinit();
-		stdout.printf("Broadcom host deinitialized. Probably.\n");
+		stdout.printf("Broadcom VideoCore host deinitialized.\n");
 		
 		
         return 0;
