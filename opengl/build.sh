@@ -1,1 +1,1 @@
-valac -X -I/opt/vc/include -X -I/opt/vc/include/interface/vcos/pthreads -X -I/opt/vc/include/interface/vmcs_host/linux -X -L/opt/vc/lib -X -lGLESv2 -X -lbcm_host --enable-experimental-non-null $1 -o opengl *.vala gles2.vapi bcm_host.vapi
+valac -X -I/opt/vc/include -X -I/opt/vc/include/interface/vcos/pthreads -X -I/opt/vc/include/interface/vmcs_host/linux -X -L/opt/vc/lib -X -lGLESv2 -X -lEGL -X -lbcm_host --enable-experimental-non-null $1 -o opengl *.vala *.vapi
