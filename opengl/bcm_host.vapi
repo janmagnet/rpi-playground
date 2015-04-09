@@ -486,6 +486,8 @@ namespace Broadcom.VideoCore
 			public unowned Get3dFormat get_3d_format;
 		}		
 		
+		// TODO: Methods above should use Vala naming convention of lower_snake_case.
+		
 			 
 		/*-------------------------------------------------------------------------
 		 * vchostif and related functions.
