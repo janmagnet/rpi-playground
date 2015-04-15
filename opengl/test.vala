@@ -12,6 +12,7 @@ class Main : GLib.Object {
 		stdout.printf("Broadcom VideoCore host initialized.\n");
 		
 		stdout.printf("Initializing EGL.\n");
+		
 		// Get an EGL display connection.
 		state.display = eglGetDisplay(EGL_DEFAULT_DISPLAY);
 		assert(state.display != EGL_NO_DISPLAY);
@@ -34,9 +35,17 @@ class Main : GLib.Object {
 		};
 		result = eglChooseConfig(state.display, attribute_list, &config, 1, &num_config);
 		assert(result != EGL_FALSE);
-		
+
+		// Get an appropriate EGL frame buffer configuration
+		result = eglBindAPI(EGL_OPENGL_ES_API);
+		assert(result != EGL_FALSE);
+
 		// Create an EGL rendering context.
-		var context = eglCreateContext(state.display, config, EGL_NO_CONTEXT, null);
+		EGLenum[] context_attributes = {
+			EGL_CONTEXT_CLIENT_VERSION, 2, // Need version 2 to compile shaders.
+			EGL_NONE
+		};
+		var context = eglCreateContext(state.display, config, EGL_NO_CONTEXT, context_attributes);
 		assert(context != EGL_NO_CONTEXT);
 		
 		// Create an EGL window surface
@@ -49,8 +58,6 @@ class Main : GLib.Object {
 		
 		state.screen_width = info.width;
 		state.screen_height = info.height;
-		//var resultX = Host.get_display_size(displayId, &screen_width, &screen_height);
-		//assert(resultX >= 0);
 		
 		stdout.printf("Display size: %u x %u\n", state.screen_width, state.screen_height);
 		
@@ -89,35 +96,63 @@ class Main : GLib.Object {
 		result = eglMakeCurrent(state.display, state.surface, state.surface, context);
 		assert(result != EGL_FALSE);
 		
-		// Enable back face culling.
-		glEnable(GL_CULL_FACE);
-		
-		// Set background color and clear buffers
-		glClearColor(0.549f, 0.765f, 0.298f, 1.0f);
-
-		glViewport(0, 0, state.screen_width, state.screen_height);
-
-        // Enable depth test
-        glEnable(GL_DEPTH_TEST);
-        
-        // Accept fragment if it closer to the camera than the former one
-        glDepthFunc(GL_LESS); 
-
 		stdout.printf("EGL initialized. Ready to do some useful stuff.\n\n");
 		
+		// OpenGL drawing setup
+		glViewport(0, 0, state.screen_width, state.screen_height);
+		glClearColor(0.549f, 0.765f, 0.298f, 1.0f);
+		glEnable(GL_CULL_FACE);
+        glEnable(GL_DEPTH_TEST);
+        glDepthFunc(GL_LESS); 
+        
+        // Model setup
+        string vertexShaderSource =
+			"attribute vec4 vPosition;   \n" +
+			"void main()                 \n" +
+			"{                           \n" +
+			"   gl_Position = vPosition; \n" +
+			"}                           \n";
+			
+        string fragmentShaderSource =
+			"precision mediump float;                    \n" +
+			"void main()                                 \n" +
+			"{                                           \n" +
+			"   gl_FragColor = vec4(1.0, 0.0, 0.0, 1.0); \n" +
+			"}                                           \n";
+		
+		var vertexShader = load_shader(GL_VERTEX_SHADER, vertexShaderSource);
+		var fragmentShader = load_shader(GL_FRAGMENT_SHADER, fragmentShaderSource);
+		
+		var programObject = glCreateProgram();
+		assert(programObject != 0);
+		
+		glAttachShader(programObject, vertexShader);
+		glAttachShader(programObject, fragmentShader);
+		
+		glBindAttribLocation(programObject, 0, "vPosition");
+		glLinkProgram(programObject);
+		
+		GLint linked = 0;
+		glGetProgramiv(programObject, GL_LINK_STATUS, &linked);
+		assert(linked != GL_FALSE);
+		
+		GLfloat[] vertices = {
+			0.0f, 0.5f, 0.0f,
+			-0.5f, -0.5f, 0.0f,
+			0.5f, -0.5f, 0.0f
+		};
 		
 		// Main render loop.
 		for (int32 i = 0; i < 200; i++) {
-			// Clear the screen
-			glClear( GL_COLOR_BUFFER_BIT| GL_DEPTH_BUFFER_BIT);
+			glClear(GL_COLOR_BUFFER_BIT| GL_DEPTH_BUFFER_BIT);
 			
-			// TODO Do useful stuff.
-			
-			
+			glUseProgram(programObject);
+			glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 0, vertices);
+			glEnableVertexAttribArray(0);
+			glDrawArrays(GL_TRIANGLES, 0, 3);
 			
 			eglSwapBuffers(state.display, state.surface);
 		}
-		
 		
 		
 		stdout.printf("\nTerminating EGL.\n");
@@ -132,10 +167,7 @@ class Main : GLib.Object {
 		result = eglDestroySurface(state.display, state.surface);
 		assert(result != EGL_FALSE);
 
-		result = eglDestroyContext(state.display, context );
-		assert(result != EGL_FALSE);
-		
-		result = eglTerminate(state.display );
+		result = eglDestroyContext(state.display, context);
 		assert(result != EGL_FALSE);
 		
 		result = eglTerminate(state.display);
@@ -149,12 +181,27 @@ class Main : GLib.Object {
 		
         return 0;
     }
+    
+    private static GLuint load_shader(GLenum type, string shaderSource) {
+		GLuint shader = glCreateShader(type);
+		stdout.printf("Compiling shader\n");
+		assert(shader != 0);
+		
+		glShaderSource(shader, 1, &shaderSource, null);
+		glCompileShader(shader);
+		
+		GLint compiled = 0;
+		glGetShaderiv(shader, GL_COMPILE_STATUS, &compiled);
+		assert(compiled != GL_FALSE);
+		
+		return shader;
+	}
 }
 
 class GlState : GLib.Object {
 	public EGLSurface surface;
 	public EGLDisplay display;
-	public uint16 displayId = 0; //DisplayId.MAIN_LCD;
+	public uint16 displayId = DisplayId.MAIN_LCD;
 	public int32 screen_width = 0;
 	public int32 screen_height = 0;
 	
